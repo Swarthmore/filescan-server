@@ -1,0 +1,22 @@
+{
+  "name": "accessibility-checker",
+  "version": "0.0.1",
+  "description": "File accessibilty checker.  Accepts a file and returns accessiblity information about the file.",
+  "main": "index.js",
+  "scripts": {
+    "prestart": "npm install",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "swagger"
+  ],
+  "license": "Unlicense",
+  "private": true,
+  "dependencies": {
+    "connect": "^3.6.2",
+    "formidable": "^1.1.1",
+    "js-yaml": "^3.3.0",
+    "pdf2json": "^1.1.7",
+    "swagger-tools": "^0.10.1"
+  }
+}

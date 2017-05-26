@@ -1,0 +1,56 @@
+swagger: '2.0'
+info:
+  description: >-
+    File accessibilty checker.  Accepts a file and returns accessiblity
+    information about the file.
+  version: 0.0.1
+  title: Accessibility Checker
+  contact:
+    email: aruethe2@swarthmore.edu
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: 130.58.80.235
+basePath: /v1
+tags:
+  - name: file
+    description: File information
+schemes:
+  - http
+paths:
+  /file:
+    post:
+      tags:
+        - file
+      summary: Submit a file for checking
+      description: ''
+      operationId: scanFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: upfile
+          type: file
+          description: The file to scan
+          required: true
+      responses:
+        '200':
+          description: A scan response
+          schema:
+            type: object
+            properties:
+              filename:
+                type: string
+                description: the filename
+              hasText:
+                type: boolean
+                description: does the file contain text
+        '400':
+          description: Missing file
+        '422':
+          description: 'Cannot process file: filetype, file error, or security problem.'
+externalDocs:
+  description: Find out more about Swagger
+  url: 'http://swagger.io'
