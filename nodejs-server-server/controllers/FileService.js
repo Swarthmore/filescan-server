@@ -1,7 +1,7 @@
 'use strict';
-let fs = require('fs'),
-	PDFParser = require("pdf2json"),
-	util = require('util');
+let	PDFParser = require("pdf2json"),
+	util = require('util'),
+	fileType = require('file-type');
         
         
 exports.scanFile = function(args, res, next) {
@@ -18,28 +18,52 @@ exports.scanFile = function(args, res, next) {
   "hasText" : true
 };
 
-	console.log(util.inspect(args.upfile, {showHidden: false, depth: null}))
+	//console.log(util.inspect(args.upfile, {showHidden: false, depth: null}))
 	
     let pdfParser = new PDFParser(this,1);
 
-    pdfParser.on("pdfParser_dataError", errData => console.error(errData.parserError) );
-    pdfParser.on("pdfParser_dataReady", pdfData => {
-    	console.log(pdfParser.getRawTextContent());
-    	console.log("Pages: " + pdfData.formImage.Pages.length);
+    pdfParser.on("pdfParser_dataError", errData => {
+    	console.error(errData.parserError);
+  		res.writeHead(422, {'statusMessage': "PDF Parsing error: " + errData.parserError},{'Content-Type': 'application/json'})
+  		res.end();  
+    });
     
-    	console.log(util.inspect(pdfData, {showHidden: false, depth: null}))
-        fs.writeFile("/Users/aruether/Downloads/F1040EZ.content.txt", pdfParser.getRawTextContent());
+    pdfParser.on("pdfParser_dataReady", pdfData => {
+    	
+    	var filename = args.upfile.originalValue.originalname;
+    	var hasText = false;
+    	var pages = pdfData.formImage.Pages.length;
+    	
+    	// Check for text   	
+    	var pdftext = pdfParser.getRawTextContent();
+    	pdftext = pdftext.replace(/\r\n----------------Page \(\d+\) Break----------------\r\n/g, '');
+    	hasText = pdftext.length > 0 ? true : false;
+    	
+    	//console.log(util.inspect(pdfData, {showHidden: false, depth: null}))
+        		
+		var output = {};
+			output['application/json'] = {
+			  "filename" : filename,
+			  "hasText" : hasText,
+			  "pages": pages
+			};
+		
+		 res.setHeader('Content-Type', 'application/json');
+		 res.end(JSON.stringify(output || {}, null, 2));
+
     });
 
-    //pdfParser.loadPDF("/Users/aruether/Downloads/EvaluationKITAccessingSurveyResultsv3.0.pdf");
-	pdfParser.parseBuffer(args.upfile.value.buffer);
 
+	// Check to make sure this is a PDF file (by MIME type)
+	var mimetype = fileType(args.upfile.value.buffer).mime;
+	if (mimetype != "application/pdf") {
+			console.log("Not a pdf");
+	  		res.writeHead(422,{'Content-Type': 'application/json'})
+  			res.end(JSON.stringify({'statusMessage': "Can't analyze this file type: " + mimetype}));  
+  	} else {
+  		// This should be a PDF, analyze it
+		pdfParser.parseBuffer(args.upfile.value.buffer);
+	}
 
-  if (Object.keys(examples).length > 0) {
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(examples[Object.keys(examples)[0]] || {}, null, 2));
-  } else {
-    res.end();
-  }
 }
 

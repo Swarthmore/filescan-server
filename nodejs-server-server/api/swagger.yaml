@@ -10,7 +10,7 @@ info:
   license:
     name: "Apache 2.0"
     url: "http://www.apache.org/licenses/LICENSE-2.0.html"
-host: "130.58.80.235"
+host: "localhost:8080"
 basePath: "/v1"
 tags:
 - name: "file"
@@ -35,6 +35,11 @@ paths:
         description: "The file to scan"
         required: true
         type: "file"
+      - name: "maxPages"
+        in: "formData"
+        description: "Override the default maximum number of pages to scan"
+        required: false
+        type: "integer"
       responses:
         200:
           description: "A scan response"
@@ -54,6 +59,9 @@ definitions:
       hasText:
         type: "boolean"
         description: "does the file contain text"
+      pages:
+        type: "integer"
+        description: "number of pages in document"        
 externalDocs:
   description: "Find out more about Swagger"
   url: "http://swagger.io"
