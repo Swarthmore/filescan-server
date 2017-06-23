@@ -42,17 +42,18 @@ exports.scanFile = function(args, res, next) {
     	//console.log(util.inspect(pdfData, {showHidden: false, depth: null}))
         		
 		var output = {};
-			output['application/json'] = {
-			  "filename" : filename,
-			  "hasText" : hasText,
-			  "pages": pages
-			};
+		
+		output['application/json'] = {
+		  "filename" : filename,
+		  "hasText" : hasText,
+		  "pages": pages,
+		  "id":  args.id ? args.id.value : ""
+		};
 		
 		 res.setHeader('Content-Type', 'application/json');
 		 res.end(JSON.stringify(output || {}, null, 2));
 
     });
-
 
 	// Check to make sure this is a PDF file (by MIME type)
 	var mimetype = fileType(args.upfile.value.buffer).mime;

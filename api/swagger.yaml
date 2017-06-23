@@ -40,6 +40,11 @@ paths:
         description: "Override the default maximum number of pages to scan"
         required: false
         type: "integer"
+      - name: "id"
+        in: "formData"
+        description: "Optional id number to associate with the file"
+        required: false
+        type: "string"        
       responses:
         200:
           description: "A scan response"
@@ -56,6 +61,9 @@ definitions:
       filename:
         type: "string"
         description: "the filename"
+      id:
+        type: "string"
+        description: "id number (if provided)"        
       hasText:
         type: "boolean"
         description: "does the file contain text"
