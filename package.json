@@ -6,7 +6,7 @@
   "scripts": {
     "prestart": "npm install",
     "start": "node index.js",
-    "dev-server": "DEBUG=* ./node_modules/.bin/nodemon --debug --watch . --watch api/swagger.yaml index.js"
+    "dev-server": "DEBUG=* ./node_modules/.bin/nodemon --debug=5859 --watch . --watch api/swagger.yaml index.js"
   },
   "keywords": [
     "swagger"
