@@ -2,7 +2,6 @@
 const url = require('url');
 const http = require('http');
 const https = require('https');
-const PDFParser = require("pdf2json");
 const util = require('util');
 const fileType = require('file-type');
 const pdfjsLib = require('pdfjs-dist');
@@ -58,7 +57,10 @@ const getBufferFromUrl = function(reqUrl) {
       // on every content chunk, push it to the data array
       response.on('data', (chunk) => body.push(chunk));
       // we are done, resolve promise with those joined chunks
-      response.on('end', () => resolve(Buffer.concat(body)));
+      response.on('end', () => {
+				let pdfBuffer = Buffer.concat(body);
+				resolve(pdfBuffer);
+			});
     })
     // handle connection errors of the request
     request.on('error', (err) => reject(err))
@@ -70,152 +72,163 @@ const getBufferFromUrl = function(reqUrl) {
  */
 const testPDFBuffer = function(fileBuffer) {
 	return new Promise((resolve, reject) => {
+		let testResults = {};
+		let langMatch = fileBuffer.toString('utf8', 0, 1024).match(/lang\(([a-z\-]+?)\)/mi);
+		let langCode = (langMatch == null) ? false : langMatch[1];
+		testResults.language = langCode;
+
 		//nativeImageDecoderSupport
 		pdfjsLib.getDocument({
 			data: fileBuffer,
 			nativeImageDecoderSupport: pdfjsLib.NativeImageDecoding.NONE
-		}).then(function (doc) {
-			//console.log(doc.transport);
-  	var numPages = doc.numPages;
-  	console.log('# Document Loaded');
-  	console.log('Number of Pages: ' + numPages);
-  	console.log();
-
-		//get metadata
-		doc.getMetadata().then(function (data) {
-	    console.log('# Metadata Is Loaded');
-	    console.log('## All DATA');
-	    console.log(JSON.stringify(data, null, 2));
-	    console.log();
-	    if (data.metadata) {
-	      console.log('## Metadata');
-	      console.log(JSON.stringify(data.metadata.metadata, null, 2));
-	      console.log();
-	    }
-		});
-		doc.getStats().then(function (data) {
-	    console.log('# Stats are Loaded');
-	    console.log('## Info');
-	    console.log(JSON.stringify(data, null, 2));
-	    console.log();
-		});
-		doc.getPageLabels().then(function (data) {
-			console.log('# Page Labels Loaded');
-			console.log('## Info');
-			console.log(JSON.stringify(data, null, 2));
-			console.log();
-		});
-		doc.getDestinations().then(function (data) {
-			console.log('# Destinations Loaded');
-			console.log('## Info');
-			console.log(JSON.stringify(data, null, 2));
-			console.log();
-		});
-		doc.getAttachments().then(function (data) {
-			console.log('# Attachements Loaded');
-			console.log('## Info');
-			console.log(JSON.stringify(data, null, 2));
-			console.log();
-		});
-		doc.getJavaScript().then(function (data) {
-			console.log('# JavaScript Loaded');
-			console.log('## Info');
-			console.log(JSON.stringify(data, null, 2));
-			console.log();
-		});
-		doc.getOutline().then(function (data) {
-	    console.log('# Outline Loaded');
-	    console.log('## Info');
-	    console.log(JSON.stringify(data, null, 2));
-	    console.log();
-		});
-
-		//get page text
-		for (let i = 1; i <= numPages; i++){
-			doc.getPage(i).then(function (page) {
-				//console.log(page);
-				page.getOperatorList().then(function (ops) {
-					for (let key in ops){
-						//console.log('OPKEY', key);
+		}).then((doc)  => {
+  		testResults.numPages = doc.numPages;
+			let pendingTests = [];
+			pendingTests.push(getMetaData(doc));
+			pendingTests.push(getJavaScript(doc));
+			pendingTests.push(getOutline(doc));
+			pendingTests.push(getAttachments(doc));
+			pendingTests.push(getPageInfo(doc));
+			Promise.all(pendingTests).then((allData) => {
+				allData.forEach(function(data){
+					let key;
+					for (key in data){
+						testResults[key] = data[key];
 					}
-					//console.log("OPERATORS", ops.fnArray, pdfjsLib.OPS);
-					let opers = [];
-    			for (let x=0; x < ops.fnArray.length; x++) {
-        		if (ops.fnArray[x] == pdfjsLib.OPS.paintJpegXObject) {
-							//console.log('IS paintJpegXObject');
-							//console.log('ARGS',ops.argsArray[x])
-							opers.push(ops.argsArray[x][0])
-        		}
-						//console.log(opers);
-						//opers.map(function (a) { page.get(a) });
-    			}
 				});
-				console.log('# Page ' + i);
-				var viewport = page.getViewport(1.0 /* scale */);
-				console.log('Size: ' + viewport.width + 'x' + viewport.height, viewport);
-				console.log();
-				return page.getTextContent({normalizeWhitespace: true}).then(function (content) {
-					// Content contains lots of information about the text layout and
-					// styles, but we need only strings at the moment
-					var strings = content.items.map(function (item) {
-						return item.str;
-					});
-					console.log('## Text Content');
-					console.log(strings.join(' '));
-					//console.log(JSON.stringify(content.styles, null, 2));
-					//for (let key in content){
-						//console.log('text key: ', key);
-					//}
-				}).then(function () {
-					console.log();
-				});
+				resolve(testResults);
 			});
-		}
+		});
 	});
+}
 
-
-
-
-		let pdfParser = new PDFParser(this,1);
-
-		pdfParser.on("pdfParser_dataError", errData => {
-			let dataErr = new Error("PDF Parsing error: " + errData.parserError);
-			dataErr.code = 422;
-			reject(dataErr);
-		});
-
-		pdfParser.on("pdfParser_dataReady", pdfData => {
-			//console.log(pdfData.formImage.Pages[0]);
-			//console.log(pdfData.formImage.Pages[0], pdfData.formImage.Pages[0].Texts[0].R);
-			for (let i in pdfData.formImage.Pages[0].Texts){
-
-				//console.log(pdfData.formImage.Pages[0].Texts[i].R);
+/**
+ * return the parsed metadata.
+ * parse the title and hasForm flag into separate elements.
+ */
+const getMetaData = function(doc){
+	return new Promise((resolve, reject) => {
+		doc.getMetadata().then((data) => {
+			let noMeta = {
+			 metaData : {},
+			 hasForm: false,
+			 hasTitle: false
+		 	};
+			if ('info' in data) {
+				let hasForm = ('IsAcroFormPresent' in data.info) ? data.info.IsAcroFormPresent : false;
+				let hasTitle = ('Title' in data.info) ? ((data.info.Title.length) ? data.info.Title : false) : false;
+				resolve ({
+					metaData : data.info,
+					hasForm: hasForm,
+					title: hasTitle
+				});
+			} else {
+				resolve (noMeta);
 			}
-			var hasText = false;
-			var pages = pdfData.formImage.Pages.length;
-
-			// Check for text
-			var pdftext = pdfParser.getRawTextContent();
-			pdftext = pdftext.replace(/\r\n----------------Page \(\d+\) Break----------------\r\n/g, '');
-			hasText = pdftext.length > 0 ? true : false;
-
-			//console.log(util.inspect(pdfData, {showHidden: false, depth: null}))
-			resolve({
-				hasText: hasText,
-				pages: pages
-			});
+		}, (err) => {
+			resolve (noMeta);
 		});
+	});
+}
 
-		// Check to make sure this is a PDF file (by MIME type)
-		var mimetype = fileType(fileBuffer).mime;
-		if (mimetype != "application/pdf") {
-			let notPDF = new Error("Can't analyze this file type: " + mimetype);
-			notPDF.code = 422;
-			reject(notPDF);
-		} else {
-			// This should be a PDF, analyze it
-			pdfParser.parseBuffer(fileBuffer);
+/**
+ * extract any JavaScript and return true if any exists, false otherwise
+ */
+const getJavaScript = function(doc){
+ 	return new Promise((resolve, reject) => {
+	 	doc.getJavaScript().then(function (data) {
+		 	resolve({hasJavaScript: (data.length) ? true : false});
+	 	}, (err) => resolve({hasJavaScript: false}));
+	});
+}
+
+/**
+ * see if the document conatains an Outline
+ */
+const getOutline = function(doc){
+ 	return new Promise((resolve, reject) => {
+	 	doc.getOutline().then(function (data) {
+			let response = { hasOutline: (data !== null) };
+			if (response.hasOutline){
+				response.outlineTitles = data.map(function(sec){
+					console.log("SECTION", sec);
+					return sec.title;
+				});
+			}
+		 	resolve(response);
+	 	}, (err) => resolve({hasOutline: false}));
+	});
+}
+
+/**
+ * see if the document conatains an Outline
+ */
+const getAttachments = function(doc){
+ 	return new Promise((resolve, reject) => {
+	 	doc.getAttachments().then(function (data) {
+			let response = { hasAttachements: (data !== null) };
+			//TODO get attachement info
+		 	resolve(response);
+	 	}, (err) => resolve({hasAttachements: false}));
+	});
+}
+
+/**
+ * return the page content
+ */
+const getPageContent = function(page){
+	return new Promise((resolve, reject) => {
+		page.getTextContent({normalizeWhitespace: true}).then(function (content) {
+			// Content contains lots of information about the text layout and
+			// styles, but we need only strings at the moment
+			var strings = content.items.map(function (item) {
+				return item.str;
+			});
+			resolve({pageText: strings.join(' ')});
+
+		},(err) => resolve({pageText: ""}));
+	});
+}
+
+/*
+ * Get information for each page
+ */
+const getPageInfo = function(doc, maxPages) {
+	return new Promise((resolve, reject) => {
+		if (maxPages == null){
+			maxPages = doc.numPages;
 		}
+		let pageInfo = [];
+		//get page text
+		for (let i = 1; i <= maxPages ; i++){
+			pageInfo.push(getSinglePageInfo(doc, i));
+		}
+		Promise.all(pageInfo).then((allData) => {
+			let pageResults = {
+				hasText: false
+			};
+			for (let p in allData){
+				if ("pageText" in allData[p] && allData[p].pageText.length){
+					pageResults.hasText = true;
+					break;
+				}
+			}
+			pageResults.pageInfo = allData;
+			pageResults.numPagesChecked = maxPages;
+			resolve(pageResults);
+		});
+	});
+}
+
+/**
+ * get the info for a single page
+ */
+const getSinglePageInfo = function(doc, index){
+	return new Promise((resolve, reject) => {
+		doc.getPage(index).then((page) => getPageContent(page),(err) => resolve({pageNum: index})).then((pageContent) => {
+			pageContent.pageNum = index;
+			resolve(pageContent)
+		}, (err) => resolve({pageNum: index}));
 	});
 }
 
