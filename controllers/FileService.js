@@ -11,8 +11,9 @@ exports.scanUrl = function(args, res, next) {
 	const fileUrl = args.url.value;
 	const fileName = fileUrl.replace(/^.+\/([^\/\?]+)(\?.*)?$/, "$1");
 	const scanId = args.id ? args.id.value : "";
+	const maxPages = (args.maxPages.value||null);
 	getBufferFromUrl(fileUrl)
-		.then((pdfBuffer) => testPDFBuffer(pdfBuffer), (err) => {throw err})
+		.then((pdfBuffer) => testPDFBuffer(pdfBuffer, maxPages), (err) => {throw err})
 		.then((results) => {
 			results.filename = fileName;
 			results.id = scanId;
@@ -30,8 +31,9 @@ exports.scanFile = function(args, res, next) {
    **/
  	const fileName = args.upfile.originalValue.originalname;
  	const scanId = args.id ? args.id.value : "";
+	const maxPages = (args.maxPages.value||null);
 	let pdfBuffer = args.upfile.value.buffer;
- 	testPDFBuffer(pdfBuffer).then((results) => {
+ 	testPDFBuffer(pdfBuffer, maxPages).then((results) => {
  			results.filename = fileName;
  			results.id = scanId;
  			sendAPIResponse(res, results);
@@ -70,7 +72,7 @@ const getBufferFromUrl = function(reqUrl) {
 /**
  * Run PDF tests on a given file Buffer
  */
-const testPDFBuffer = function(fileBuffer) {
+const testPDFBuffer = function(fileBuffer, maxPages) {
 	return new Promise((resolve, reject) => {
 		let testResults = {};
 		let langMatch = fileBuffer.toString('utf8', 0, 1024).match(/lang\(([a-z\-]+?)\)/mi);
@@ -88,7 +90,7 @@ const testPDFBuffer = function(fileBuffer) {
 			pendingTests.push(getJavaScript(doc));
 			pendingTests.push(getOutline(doc));
 			pendingTests.push(getAttachments(doc));
-			pendingTests.push(getPageInfo(doc));
+			pendingTests.push(getPageInfo(doc, maxPages));
 			Promise.all(pendingTests).then((allData) => {
 				allData.forEach(function(data){
 					let key;
@@ -151,7 +153,6 @@ const getOutline = function(doc){
 			let response = { hasOutline: (data !== null) };
 			if (response.hasOutline){
 				response.outlineTitles = data.map(function(sec){
-					console.log("SECTION", sec);
 					return sec.title;
 				});
 			}
@@ -195,7 +196,7 @@ const getPageContent = function(page){
  */
 const getPageInfo = function(doc, maxPages) {
 	return new Promise((resolve, reject) => {
-		if (maxPages == null){
+		if (maxPages == null || maxPages > doc.numPages){
 			maxPages = doc.numPages;
 		}
 		let pageInfo = [];
