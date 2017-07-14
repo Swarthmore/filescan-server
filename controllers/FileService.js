@@ -74,6 +74,7 @@ const getBufferFromUrl = function(reqUrl) {
  */
 const testPDFBuffer = function(fileBuffer, maxPages) {
 	return new Promise((resolve, reject) => {
+		//Do the language test first
 		let testResults = {};
 		let langMatch = fileBuffer.toString('utf8', 0, 1024).match(/lang\(([a-z\-]+?)\)/mi);
 		let langCode = (langMatch == null) ? false : langMatch[1];
@@ -168,7 +169,7 @@ const getAttachments = function(doc){
  	return new Promise((resolve, reject) => {
 	 	doc.getAttachments().then(function (data) {
 			let response = { hasAttachements: (data !== null) };
-			//TODO get attachement info
+			//TODO get attachment info
 		 	resolve(response);
 	 	}, (err) => resolve({hasAttachements: false}));
 	});
@@ -183,10 +184,12 @@ const getPageContent = function(page){
 			// Content contains lots of information about the text layout and
 			// styles, but we need only strings at the moment
 			var strings = content.items.map(function (item) {
-				return item.str;
+				let trimmedText = item.str.replace(/(^\s+|\s+$)/gm, "");
+				return trimmedText;
+			}).filter(function (str){
+				return (str.length);
 			});
 			resolve({pageText: strings.join(' ')});
-
 		},(err) => resolve({pageText: ""}));
 	});
 }
