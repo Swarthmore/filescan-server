@@ -51,7 +51,7 @@ paths:
           schema:
             $ref: "#/definitions/inline_response_200"
         400:
-          description: "Missing file"
+          description: "Invalid status value"
         422:
           description: "Cannot process file: filetype, file error, or security problem."
       x-swagger-router-controller: "File"
@@ -70,7 +70,7 @@ paths:
         description: "The url to scan"
         required: true
         type: "string"
-        pattern: "https?:\/\/.+"
+        pattern: "https?://.+"
       - name: "maxPages"
         in: "query"
         description: "Override the default maximum number of pages to scan"
@@ -87,13 +87,19 @@ paths:
           schema:
             $ref: "#/definitions/inline_response_200"
         400:
-          description: "Error processing URL"
-        404:
-          description: "File not found"
+          description: "Invalid status value"
         422:
           description: "Cannot process file: filetype, file error, or security problem."
       x-swagger-router-controller: "File"
 definitions:
+  Page:
+    properties:
+      pageNum:
+        type: "integer"
+        description: "the page number in the document"
+      pageText:
+        type: "string"
+        description: "all text extracted from the page"
   inline_response_200:
     properties:
       filename:
@@ -105,9 +111,45 @@ definitions:
       hasText:
         type: "boolean"
         description: "does the file contain text"
-      pages:
+      numPages:
         type: "integer"
-        description: "number of pages in document"
+        description: "total number of pages in the document"
+      language:
+        type: "string"
+        description: "language code for the document, false if not defined"
+      metaData:
+        type: "object"
+        description: "object containing metadata extracted from the document, elements\
+          \ vary"
+        properties: {}
+      hasForm:
+        type: "boolean"
+        description: "true if the PDF contains a form"
+      title:
+        type: "string"
+        description: "the document title, false if none defined"
+      hasJavaScript:
+        type: "boolean"
+        description: "true if the document contains JavaScript"
+      hasOutline:
+        type: "boolean"
+        description: "true if the document contains an outline"
+      outlineTitles:
+        type: "array"
+        description: "if an outline is defined, an array of outline titles"
+        items:
+          type: "string"
+      hasAttachements:
+        type: "boolean"
+        description: "true if the PDF contains attachments"
+      pageInfo:
+        type: "array"
+        description: "array of individual page information objects"
+        items:
+          $ref: "#/definitions/Page"
+      numPagesChecked:
+        type: "integer"
+        description: "total number of pages checked"
 externalDocs:
   description: "Find out more about Swagger"
   url: "http://swagger.io"
