@@ -76,7 +76,7 @@ const testPDFBuffer = function(fileBuffer, maxPages) {
 	return new Promise((resolve, reject) => {
 		//Do the language test first
 		let testResults = {};
-		let langMatch = fileBuffer.toString('utf8', 0, 1024).match(/lang\(([a-z\-]+?)\)/mi);
+		let langMatch = fileBuffer.toString('utf8', 0, 20971520).match(/lang\(([a-z\-]+?)\)/mi);
 		let langCode = (langMatch == null) ? false : langMatch[1];
 		testResults.language = langCode;
 
