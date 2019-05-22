@@ -18,7 +18,7 @@
     "file-type": "^4.3.0",
     "js-yaml": "^3.3.0",
     "pdfjs-dist": "^1.8.522",
-    "swagger-tools": "0.10.1"
+    "swagger-tools": "^0.10.4"
   },
   "devDependencies": {
     "nodemon": "^1.11.0"
