@@ -16,7 +16,10 @@ var options = {
 
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
 var spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
-var swaggerDoc = jsyaml.safeLoad(spec);
+var swaggerDoc = jsyaml.safeLoad(spec);;
+
+// Allow for specified port
+swaggerDoc.host = "localhost:" + serverPort;
 
 // Initialize the Swagger middleware
 swaggerTools.initializeMiddleware(swaggerDoc, function (middleware) {
