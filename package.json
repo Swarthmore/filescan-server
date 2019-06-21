@@ -14,10 +14,15 @@
   "license": "Unlicense",
   "private": true,
   "dependencies": {
+    "@iarna/word-count": "^1.1.2",
     "connect": "^3.2.0",
+    "dictionary": "^1.0.2",
+    "dictionary-en-us": "^2.1.1",
     "file-type": "^4.3.0",
     "js-yaml": "^3.3.0",
     "pdfjs-dist": "^1.8.522",
+    "retext": "^6.0.2",
+    "retext-spell": "^3.0.0",
     "swagger-tools": "^0.10.4"
   },
   "devDependencies": {
