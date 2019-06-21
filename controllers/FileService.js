@@ -5,6 +5,13 @@ const https = require('https');
 const util = require('util');
 const fileType = require('file-type');
 const pdfjsLib = require('pdfjs-dist');
+const retext = require('retext');
+const spell = require('retext-spell');
+const wordCount = require('@iarna/word-count');
+const dictionary = require('dictionary-en-us');
+
+
+
 global.DOMParser = require('../domparsermock.js').DOMParserMock;
 
 exports.scanUrl = function(args, res, next) {
@@ -85,22 +92,27 @@ const testPDFBuffer = function(fileBuffer, maxPages) {
 			data: fileBuffer,
 			nativeImageDecoderSupport: pdfjsLib.NativeImageDecoding.NONE
 		}).then((doc)  => {
-  		testResults.numPages = doc.numPages;
+  		    testResults.numPages = doc.numPages;
 			let pendingTests = [];
 			pendingTests.push(getMetaData(doc));
 			pendingTests.push(getJavaScript(doc));
 			pendingTests.push(getOutline(doc));
 			pendingTests.push(getAttachments(doc));
-			pendingTests.push(getPageInfo(doc, maxPages));
-			Promise.all(pendingTests).then((allData) => {
-				allData.forEach(function(data){
-					let key;
-					for (key in data){
-						testResults[key] = data[key];
-					}
-				});
-				resolve(testResults);
-			});
+            pendingTests.push(getPageInfo(doc, maxPages));
+            //pendingTests.push(getSpellingStats(doc, testResults.language));
+            Promise.all(pendingTests)
+                .then(allData => {
+                    return getSpellingStats(allData);
+                })
+                .then((allData) => {
+                    allData.forEach(function(data){
+                        let key;
+                        for (key in data){
+                            testResults[key] = data[key];
+                        }
+                    });
+                    resolve(testResults);
+                });
 		});
 	});
 }
@@ -234,6 +246,64 @@ const getSinglePageInfo = function(doc, index){
 			resolve(pageContent)
 		}, (err) => resolve({pageNum: index}));
 	});
+}
+
+
+/**
+ * return the spelling percent
+ */
+const getSpellingStats = function(allData) {
+
+    return new Promise((resolve, reject) => {
+        // Find the section with page content info
+        var pageSpelling = [];
+        for (var i=0; i < allData.length; i++) { 
+            if (allData[i].hasText) {
+                for (var j=0; j< allData[i].pageInfo.length; j++) {
+                    if ("pageText" in allData[i].pageInfo[j]) {
+                        pageSpelling.push(getSpellingStatsFromString(allData[i].pageInfo[j].pageText))
+                    }
+                }
+            }
+        }
+
+        Promise.all(pageSpelling).then( (spellingData) => {
+            var totalwords = 0;
+            var totalMisspelled = 0;
+            var sq = 0;
+            spellingData.forEach( (d) => {
+                totalwords += d.wordCount;
+                totalMisspelled += d.misspelledCount;
+            });
+
+            if (totalwords > 1) {
+                sq = Math.round( 100*(totalwords - totalMisspelled)/totalwords)/100; // Round to hundreths
+            } else {
+                sq = 0; // No text content
+            }
+            allData.push({spelling: sq, wordCount: totalwords})
+            resolve(allData);
+        });
+    });
+}
+
+
+const getSpellingStatsFromString = function(content) {
+
+    return new Promise((resolve, reject) => {
+        var misspelled_words = 0
+        var totalWords = wordCount(content);
+        retext()
+        .use(spell, dictionary)
+        .process(content, function(err, file) {
+            if (file && 'messages' in file) {
+                misspelled_words = file.messages.length;
+            } else {
+                misspelled_words = 0;
+            }
+            resolve({wordCount:totalWords, misspelledCount: misspelled_words});
+        });
+    })
 }
 
 /*
